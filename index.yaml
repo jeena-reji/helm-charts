@@ -1,0 +1,31 @@
+apiVersion: v1
+entries:
+  5g-control-plane:
+  - apiVersion: v2
+    created: "2025-02-12T17:04:29.2011321+05:30"
+    dependencies:
+    - condition: mongodb.deploy
+      name: mongodb
+      repository: https://charts.bitnami.com/bitnami
+      version: 13.16.4
+    - condition: kafka.deploy
+      name: kafka
+      repository: https://charts.bitnami.com/bitnami
+      version: 20.0.4
+    - alias: certmanager
+      condition: certmanager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: v1.16.2
+    - condition: prometheus.enabled
+      name: prometheus
+      repository: https://prometheus-community.github.io/helm-charts
+      version: 19.0.1
+    description: SD-Core 5G control plane services
+    digest: 3a2fec3bb5517d8df6c46eca220b9e2afd8880a41e0d3d41cb7eb607ed74a7af
+    icon: https://guide.opencord.org/logos/cord.svg
+    name: 5g-control-plane
+    urls:
+    - https://charts.yourdomain.com/5g-control-plane-2.2.0.tgz
+    version: 2.2.0
+generated: "2025-02-12T17:04:29.1130951+05:30"
