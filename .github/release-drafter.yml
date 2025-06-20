@@ -12,5 +12,5 @@ categories:
       - 'chore'
 change-template: '- $TITLE (#$NUMBER) by @$AUTHOR'
 template: |
-  ## Changes
+  ## ✨ What's Changed
   $CHANGES
