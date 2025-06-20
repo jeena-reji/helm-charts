@@ -1,144 +1,39 @@
-name: GitHub Access Control Report12
- 
+name: Auto Generate Draft Release
+
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
-      org_name:
-        description: 'GitHub organization name'
+      tag_name:
+        description: 'Tag for the release (e.g., v0.1.6.rc1)'
         required: true
         type: string
- 
+
+permissions:
+  contents: write
+
 jobs:
-  generate-access-report:
+  release:
     runs-on: ubuntu-latest
- 
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
- 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
- 
-      - name: Install dependencies
-        run: pip install pandas requests
- 
-      - name: Generate GitHub access reports
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
+
+      - name: Create tag (if not exists)
         run: |
-          python <<EOF
-          import requests
-          import pandas as pd
-          import os
-          from time import sleep
- 
-          # Environment variables
-          GITHUB_TOKEN = os.environ['GH_PAT']
-          ORG_NAME = '${{ github.event.inputs.org_name }}'
- 
-          headers = {
-              "Authorization": f"token {GITHUB_TOKEN}",
-              "Accept": "application/vnd.github.v3+json"
-          }
- 
-          def get_paginated_results(url):
-              results = []
-              while url:
-                  res = requests.get(url, headers=headers)
-                  res.raise_for_status()
-                  results.extend(res.json())
-                  url = res.links.get("next", {}).get("url")
-              return results
- 
-          def get_repos():
-              return get_paginated_results(f"https://api.github.com/orgs/{ORG_NAME}/repos")
- 
-          def get_collaborators(repo_name):
-              url = f"https://api.github.com/repos/{ORG_NAME}/{repo_name}/collaborators?affiliation=all"
-              try:
-                  return get_paginated_results(url)
-              except requests.exceptions.HTTPError as e:
-                  if e.response.status_code == 404:
-                      print(f"Warning: Repository '{repo_name}' not found or inaccessible.")
-                      return []  # Return an empty list if the repo is not found
-                  else:
-                      raise  # Re-raise other HTTP errors
- 
-          def get_teams():
-              return get_paginated_results(f"https://api.github.com/orgs/{ORG_NAME}/teams")
- 
-          def get_team_members(team_slug):
-              url = f"https://api.github.com/orgs/{ORG_NAME}/teams/{team_slug}/members"
-              return get_paginated_results(url)
- 
-          def get_team_repos(team_slug):
-              url = f"https://api.github.com/orgs/{ORG_NAME}/teams/{team_slug}/repos"
-              return get_paginated_results(url)
- 
-          def get_permission_name(permissions):
-              if permissions.get('admin'):
-                  return 'admin'
-              elif permissions.get('maintain'):
-                  return 'maintain'
-              elif permissions.get('push'):
-                  return 'write'
-              elif permissions.get('triage'):
-                  return 'triage'
-              elif permissions.get('pull'):
-                  return 'read'
-              else:
-                  return 'none'
- 
-          # Repo-level report (includes individual users)
-          repo_access_data = []
-          repos = get_repos()
-          for repo in repos:
-              repo_name = repo['name']
-              repo_url = repo['html_url']
-              print(f"Processing repository: {repo_name}")
-              collaborators = get_collaborators(repo_name)
-              for user in collaborators:
-                  repo_access_data.append({
-                      "Repo": repo_name,
-                      "Repo URL": repo_url,
-                      "User": user['login'],
-                      "User ID": user['id'],
-                      "Access Level": get_permission_name(user.get('permissions', {}))
-                  })
-              sleep(1)  # To avoid hitting rate limits
-          repo_df = pd.DataFrame(repo_access_data)
-          repo_df.to_csv("repo_access_report.csv", index=False)
- 
-          # Team-level report (teams, members, and repos they access)
-          team_access_data = []
-          teams = get_teams()
-          for team in teams:
-              team_name = team['name']  # Use team name for the report
-              team_slug = team['slug']  # Slug for API calls only
-              print(f"Processing team: {team_name}")
-              members = get_team_members(team_slug)
-              repos = get_team_repos(team_slug)
-              for repo in repos:
-                  for member in members:
-                      team_access_data.append({
-                          "Team": team_name,  # Human-readable team name
-                          "Member": member['login'],
-                          "Member ID": member['id'],
-                          "Repo": repo['name'],
-                          "Repo URL": repo['html_url'],
-                          "Access Level": get_permission_name(repo.get('permissions', {}))
-                      })
-              sleep(1)
-          team_df = pd.DataFrame(team_access_data)
-          team_df.to_csv("team_access_report.csv", index=False)
-          EOF
- 
-      - name: Upload Reports
-        uses: actions/upload-artifact@v4
+          if ! git rev-parse "${{ github.event.inputs.tag_name }}" >/dev/null 2>&1; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git tag ${{ github.event.inputs.tag_name }}
+            git push origin ${{ github.event.inputs.tag_name }}
+          fi
+
+      - name: Generate release notes
+        uses: softprops/action-gh-release@v1
         with:
-          name: github-access-reports
-          path: |
-            repo_access_report.csv
-            team_access_report.csv
+          tag_name: ${{ github.event.inputs.tag_name }}
+          draft: true
+          generate_release_notes: true
