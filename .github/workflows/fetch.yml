@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: pip install pandas requests
 
-      - name: Generate GitHub access reports
+      - name: Generate GitHub access reports1
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
